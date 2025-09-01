@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"encoding/json"
+
 	"github.com/yanakipre/bot/app/telegramsearch/internal/pkg/client/storage/postgres/internal/dbmodels"
 	models "github.com/yanakipre/bot/app/telegramsearch/internal/pkg/client/storage/storagemodels"
 
@@ -13,14 +14,14 @@ import (
 var queryFetchChatThreadToGenerateEmbedding = sqltooling.NewStmt(
 	"FetchChatThreadToGenerateEmbedding",
 	`
-SELECT * FROM chatthreads WHERE thread_id NOT IN (SELECT thread_id FROM embeddings) LIMIT 2000;
+SELECT thread_id, chat_id, body FROM chatthreads WHERE most_recent_message_at > fresh_embeddings_at LIMIT 2000;
 `,
 	dbmodels.ChatThread{},
 )
 
 func (s *Storage) FetchChatThreadToGenerateEmbedding(ctx context.Context, req models.ReqFetchChatThreadToGenerateEmbedding) (models.RespFetchChatThreadToGenerateEmbedding, error) {
 	rows := []dbmodels.ChatThread{}
-	if err := s.db.SelectContext(ctx, &rows, queryFetchChatThreadToGenerateEmbedding.Query, map[string]any{}); err != nil {
+	if err := s.db.SelectContext(ctx, &rows, queryFetchChatThreadToGenerateEmbedding.Query, map[string]any{}); err != nil { // map[string]any{} generate?
 		return models.RespFetchChatThreadToGenerateEmbedding{}, err
 	}
 	return models.RespFetchChatThreadToGenerateEmbedding{
@@ -38,10 +39,11 @@ var queryCreateChatThread = sqltooling.NewStmt(
 	"CreateChatThread",
 	`
 INSERT INTO chatthreads
-	(chat_id, body)
+	(chat_id, body, content_hash)
 VALUES (
-        :chat_id, CAST(:body as JSONB)
-);
+        $1, CAST($2 as JSONB), md5($2::text)
+)
+ON CONFLICT (chat_id, content_hash) DO NOTHING;
 `,
 	nil,
 )
@@ -52,10 +54,7 @@ func (s *Storage) CreateChatThread(ctx context.Context, req models.ReqCreateChat
 		return models.RespCreateChatThread{}, err
 	}
 
-	_, err = s.db.ExecContext(ctx, queryCreateChatThread.Query, map[string]any{
-		"chat_id": req.ChatID,
-		"body":    marshal,
-	})
+	_, err = s.db.ExecContext(ctx, queryCreateChatThread.Query, req.ChatID, marshal)
 	if err != nil {
 		return models.RespCreateChatThread{}, err
 	}

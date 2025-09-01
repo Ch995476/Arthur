@@ -6,12 +6,13 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"github.com/yanakipre/bot/app/telegramsearch/internal/pkg/client/storage/storagemodels"
-	models "github.com/yanakipre/bot/app/telegramsearch/internal/pkg/controllers/controllerv1/controllerv1models"
 	"strconv"
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/yanakipre/bot/app/telegramsearch/internal/pkg/client/storage/storagemodels"
+	models "github.com/yanakipre/bot/app/telegramsearch/internal/pkg/controllers/controllerv1/controllerv1models"
 
 	"github.com/samber/lo"
 	"github.com/sourcegraph/conc/pool"
@@ -33,7 +34,7 @@ const (
 type serializedChatMessage struct {
 	ID int64 `json:"id"`
 	// Type is service or message
-	Type         ChatMessageType `json:"type"`
+	Type         ChatMessageType `json:"type"` // ?
 	DateUnix     string          `json:"date_unixtime"`
 	FromId       string          `json:"from_id"`
 	TextEntities []TextEntity    `json:"text_entities"`
@@ -46,7 +47,7 @@ func (s *serializedChatMessage) getText() string {
 	return strings.Join(
 		lo.Map(s.TextEntities, func(item TextEntity, _ int) string { return item.Text }),
 		" ",
-	)
+	) // с вероятностью в процентов 100 это всё существует потому что экспорт ручками не выдаёт нормально текст если в нём есть форматирование (и соответственно вся шиза что я буду писать имеет отрицательный смысл, ведь апи отдаёт), но, но, игого 10
 }
 
 type results struct {
@@ -167,6 +168,7 @@ func (c *Ctl) threadsHighMem(ctx context.Context, req models.ReqDumpChatHistory)
 	msgs := lo.Filter(result.Messages, func(item serializedChatMessage, index int) bool {
 		return item.Type == ChatMessageTypeMessage
 	})
+	lg.Info("Messages before findThreads", zap.Any("message_ids", lo.Map(msgs, func(item serializedChatMessage, _ int) int64 { return item.ID })))
 	threads := lo.Filter(findThreads(lg, msgs), func(item thread, index int) bool {
 		return len(item) > 1 // skip threads of len 1 because no answers means no opinions
 	})

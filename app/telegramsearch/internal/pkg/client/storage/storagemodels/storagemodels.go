@@ -60,3 +60,53 @@ type ReqCreateChat struct {
 
 type RespCreateChat struct {
 }
+
+type ReqGetChatLastReadID struct {
+	ChatID string
+}
+
+type RespGetChatLastReadID struct {
+	LastReadID int64
+}
+
+type ReqUpdateChatLastReadID struct {
+	ChatID     string
+	LastReadID int64
+}
+
+type RespUpdateChatLastReadID struct {
+}
+
+type ReqCreateChatMessage struct {
+	MessageID    int64
+	ChatID       string
+	FromID       int64
+	TextEntities string
+	Message      string
+	ReplyTo      *int64
+	Date         time.Time
+	Type         string
+}
+
+type RespCreateChatMessage struct {
+	MessageID int64
+}
+
+type ReqFetchChatMessages struct {
+	ChatID string
+}
+
+type ChatMessage struct {
+	MessageID    int64
+	ChatID       string
+	FromID       int64
+	TextEntities string
+	Message      string
+	ReplyTo      *int64
+	Date         time.Time
+	Type         string
+}
+
+type RespFetchChatMessages struct {
+	Messages []ChatMessage
+}
